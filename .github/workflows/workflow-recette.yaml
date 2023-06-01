@@ -29,6 +29,7 @@ jobs:
             curl --output app/src/main/res/values-nl/strings.xml -H "Authorization: Loco $(LOCOTOKEN)" https://localise.biz/api/export/locale/nl.xml?charset=UTF-8&format=xml
   
   Setup-and-build-app:
+    needs: Get-settings
     runs-on: macos-lastest
     steps:
          - uses: actions/checkout@v3
@@ -45,14 +46,28 @@ jobs:
             #you must specify what pattern to include otherwise all files from the repository will be replicated 
             patterns_to_include: "**/?(app-recette.apk)" # A voir ce que c'est réellement 
             
+  Generate-keys: 
+    runs-on: macos-latest
+    steps:
+         - name: Generate Sha1
+           run: |
+            keytool -list -v -keystore $(Agent.TempDirectory)/appholderStore.keystore -alias alias_name -storepass $(keyPassword) | grep SHA1 | awk '{print $2}' >> $(build.artifactStagingDirectory)/sha1.txt
+
+         - name: Echo Generate Sha1
+           run: |
+            keytool -list -v -keystore $(Agent.TempDirectory)/appholderStore.keystore -alias alias_name -storepass $(keyPassword)
             
+  Publishing:
+    needs: [Get-settings, Setup-and-build-app, Generate-keys]
+    runs-on: macos-lastest
+    steps:
          - name: upload artifact to Firebase App Distribution
            uses: wzieba/Firebase-Distribution-Github-Action@v1
            with:
-            appId: ${{secrets.FIREBASE_APP_ID}} # a voir
-            serviceCredentialsFileContent: ${{ secrets.CREDENTIAL_FILE_CONTENT }} # A voir
-            groups: testers # A voir
-            file: app/build/outputs/apk/release/app-release-unsigned.apk # A voir
+            appId: ${{secrets.FIREBASE_APP_ID}} # a voir waykonect-appporteur-internal
+            serviceCredentialsFileContent: ${{ secrets.CREDENTIAL_FILE_CONTENT }} # Important !
+            debug: true
+            file: app/build/outputs/apk/release/app-release-unsigned.apk # Remplir avec l'APK
                
             
        
